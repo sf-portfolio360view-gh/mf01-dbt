@@ -1,0 +1,5 @@
+scheme_code,fund_name,category,amc_name,benchmark_index
+AXIS123,Axis Bluechip Fund,Large Cap,Axis AMC,Nifty 100
+HDFC456,HDFC Midcap Opp,Mid Cap,HDFC AMC,Nifty Midcap 150
+SBI789,SBI Small Cap Fund,Small Cap,SBI AMC,Nifty Smallcap 250
+ICICI321,ICICI Prudential Value Discovery Fund,Value,ICICI AMC,BSE 200

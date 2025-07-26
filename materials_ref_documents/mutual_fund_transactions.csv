@@ -1,0 +1,6 @@
+transaction_id,investor_id,fund_name,scheme_code,transaction_type,amount,nav_at_time,units,transaction_date
+TXN001,INV001,Axis Bluechip Fund,AXIS123,BUY,5000,50.0,100,2023-01-15
+TXN002,INV001,Axis Bluechip Fund,AXIS123,BUY,3000,60.0,50,2023-03-01
+TXN003,INV002,HDFC Midcap Opp,HDFC456,BUY,4000,40.0,100,2023-02-10
+TXN004,INV003,SBI Small Cap Fund,SBI789,SIP,6000,80.0,75,2024-01-15
+TXN005,INV004,ICICI Prudential Value Discovery Fund,ICICI321,BUY,7000,56.0,125,2024-02-20

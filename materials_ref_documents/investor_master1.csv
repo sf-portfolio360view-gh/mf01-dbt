@@ -1,0 +1,5 @@
+investor_id,name,email,phone,pan_number,created_date
+INV001,Raj Mehta,raj@example.com,9999988888,ABCDE1234F,2023-01-01
+INV002,Priya Kapoor,priya@example.com,8888877777,PQRSX6789L,2023-01-05
+INV003,Amit Sharma,amit@example.com,7777766666,LMNOP5432Z,2023-02-10
+INV004,Neha Joshi,neha@example.com,9999911111,ZXYWU1111Q,2023-03-12

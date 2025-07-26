@@ -1,0 +1,85 @@
+
+models:
+  - name: stg_investor_master
+    description: "Staging model for investor_master that standardizes and casts data types for further transformation"
+    columns:
+      - name: investor_id
+        description: "Unique identifier for each investor"
+        tests:
+          - not_null
+          - unique
+
+      - name: name
+        description: "Full name of the investor"
+
+      - name: email
+        description: "Email address of the investor"
+
+      - name: phone
+        description: "Phone number of the investor"
+
+      - name: pan
+        description: "PAN number of the investor"
+
+      - name: created_date
+        description: "Original creation date of the investor record"
+
+      - name: loading_date
+        description: "Date when the record was loaded into raw layer"
+
+      - name: file_name
+        description: "Source file name that provided the record"
+
+      - name: row_num
+        description: "Sequence number or row order from the source file"
+
+  - name: stg_nav_hist
+    description: "Staging model for nav_history that standardizes mutual fund NAV data"
+    columns:
+      - name: scheme_code
+        description: "Unique identifier for the mutual fund"
+        tests:
+          - not_null
+
+      - name: nav_date
+        description: "Date on which NAV was recorded"
+        tests:
+          - not_null
+
+      - name: nav_value
+        description: "Net Asset Value of the fund on the given date"
+
+      - name: loading_date
+        description: "Date when the record was loaded into raw layer"
+
+      - name: file_name
+        description: "Name of the source file the record came from"
+
+  - name: stg_fund_master
+    description: "dimentional table with all fund related data"
+    columns:
+      - name: scheme_code
+        description: "keep scheme code"
+        test:
+          - not_null
+
+      - name: fund_name
+        description: "fund name details"
+        test:
+          - not_null
+
+  - name: stg_mf_trans
+    description: "transaction data"
+    columns:
+      - name: transaction_id
+        description : "key column"
+        test:
+          - unique
+          - not_null
+
+      - name: investor_id
+        description: "foreign key from investor table"
+        test:
+          - unique
+          - not_null
+ 

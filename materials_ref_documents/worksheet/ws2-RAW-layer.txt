@@ -1,0 +1,242 @@
+USE DATABASE MF01;
+USE SCHEMA RAW;
+USE ROLE MF01_DEV_ROLE;
+USE WAREHOUSE MF01_WH;
+----------------------
+
+-- CREATE TABLES 
+
+CREATE OR REPLACE TABLE MF01.RAW.investor_master (
+    investor_id     STRING,
+    name            STRING,
+    email           STRING,
+    phone           STRING,
+    pan_number      STRING,
+    created_date    STRING,
+    loading_date    string,
+    file_name       STRING,
+    row_num         STRING
+);
+
+CREATE OR REPLACE TABLE MF01.RAW.fund_master (
+    scheme_code      STRING,
+    fund_name        STRING,
+    category         STRING,       -- e.g., Large Cap, Mid Cap, etc.
+    amc_name         STRING,       -- e.g., HDFC AMC
+    benchmark_index  STRING,        -- e.g., Nifty 100
+    loading_date    string,
+    file_name       STRING,
+    row_num         STRING
+);
+
+CREATE OR REPLACE TABLE MF01.RAW.nav_history (
+    scheme_code   STRING,
+    fund_name     STRING,
+    nav_date      STRING,
+    nav_value     STRING,
+    loading_date    string,
+    file_name       STRING,
+    row_num         STRING
+);
+
+CREATE OR REPLACE TABLE MF01.RAW.mutual_fund_transactions (
+    transaction_id     STRING,
+    investor_id        STRING,
+    fund_name          STRING,
+    scheme_code        STRING,
+    transaction_type   STRING,    -- BUY / SELL / SIP
+    amount             STRING,
+    nav_at_time        STRING,
+    units              STRING,
+    transaction_date   STRING,
+    loading_date    string,
+    file_name       STRING,
+    row_num         STRING
+);
+
+--------File format
+
+CREATE OR REPLACE FILE FORMAT MF01_FF_CSV
+TYPE = CSV,
+FIELD_DELIMITER = ','
+SKIP_HEADER = 1
+NULL_IF = 'NULL';
+
+DESC FILE FORMAT MF01_FF_CSV;
+
+--------- STORAGE INTEGRATOIN
+
+CREATE OR REPLACE STORAGE INTEGRATION MF01_SI
+TYPE = EXTERNAL_STAGE
+ENABLED = TRUE
+AZURE_TENANT_ID = 'ac416428-7878-4a24-8b47-053df04ee509'
+STORAGE_ALLOWED_LOCATIONS=('azure://mutualfund01sa.blob.core.windows.net/mf01-source/')
+STORAGE_PROVIDER= AZURE;
+
+DESC STORAGE INTEGRATION MF01_SI; -- 9msmqmsnowflakepacint
+
+-- PERMISSION IS DONE (CONSENT URL + ADD TENANT APP NAME TO AZURE CONTAINER ROLE IAM )
+
+------------- STAGE
+CREATE OR REPLACE STAGE MF01_STG
+STORAGE_INTEGRATION= MF01_SI
+URL = 'azure://mutualfund01sa.blob.core.windows.net/mf01-source/';
+
+LIST @MF01_STG;
+
+SELECT $1::STRING AS investor_id,
+    $2::STRING AS name,
+    $3::STRING AS email,
+    $4::STRING AS phone,
+    $5::STRING AS pan_number,
+    $6::STRING AS created_date,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS ROW_NUM,
+FROM @MF01_STG/investor;
+
+-----copy into
+
+COPY INTO RAW.INVESTOR_MASTER
+FROM 
+   (SELECT $1::STRING AS investor_id,
+    $2::STRING AS name,
+    $3::STRING AS email,
+    $4::STRING AS phone,
+    $5::STRING AS pan_number,
+    $6::STRING AS created_date,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS ROW_NUM,
+FROM @MF01_STG/investor)
+FILE_FORMAT = (FORMAT_NAME = MF01_FF_CSV)
+ON_ERROR = CONTINUE;
+
+-- NOTIFICATION INTEGRATION 
+
+CREATE OR REPLACE NOTIFICATION INTEGRATION MF01_NI2
+ENABLED = TRUE
+TYPE =QUEUE
+AZURE_TENANT_ID = 'ac416428-7878-4a24-8b47-053df04ee509'
+NOTIFICATION_PROVIDER=AZURE_STORAGE_QUEUE
+AZURE_STORAGE_QUEUE_PRIMARY_URI='https://mutualfund01sa.queue.core.windows.net/mf01-queue2';
+
+/*
+--OR
+NOTIFICATION_PROVIDER=AZURE_EVENT_GRID  -- AZURE_STORAGE_QUEUE --
+AZURE_EVENT_GRID_TOPIC_ENDPOINT='need to create evend grid topic' ; 
+*/
+
+DESC NOTIFICATION INTEGRATION MF01_NI2;
+
+-- PIPE
+
+CREATE OR REPLACE PIPE MF01_PIPE_INVS
+AUTO_INGEST = TRUE
+INTEGRATION = MF01_NI2
+AS
+COPY INTO RAW.INVESTOR_MASTER
+FROM 
+   (SELECT $1::STRING AS investor_id,
+    $2::STRING AS name,
+    $3::STRING AS email,
+    $4::STRING AS phone,
+    $5::STRING AS pan_number,
+    $6::STRING AS created_date,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS ROW_NUM,
+FROM @MF01_STG/investor)
+FILE_FORMAT = (FORMAT_NAME = MF01_FF_CSV)
+ON_ERROR = CONTINUE;
+
+
+select * from investor_master;
+--delete from investor_master;
+
+alter pipe MF01_pipe_invs refresh;
+select system$pipe_status('MF01_pipe_invs');
+
+---------------------------------nav table load----------
+
+CREATE OR REPLACE PIPE MF01_PIPE_NAV
+AUTO_INGEST = TRUE
+INTEGRATION = MF01_NI2
+AS
+COPY INTO RAW.NAV_HISTORY
+FROM 
+   (SELECT
+    $1::STRING AS scheme_code,
+    $2::STRING AS fund_name,
+    $3::string  AS nav_date,
+    $4::string  AS nav_value,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS row_num
+FROM @MF01_STG/nav)
+FILE_FORMAT = (FORMAT_NAME = MF01_FF_CSV)
+ON_ERROR = CONTINUE;
+
+
+select * from nav_history;
+alter pipe mf01_pipe_nav refresh;
+
+-----------------------------fund master 
+
+CREATE OR REPLACE PIPE MF01_PIPE_FUND
+AUTO_INGEST = TRUE
+INTEGRATION = MF01_NI2
+AS
+COPY INTO RAW.FUND_MASTER
+FROM 
+   (
+   SELECT
+    $1::STRING AS scheme_code,
+    $2::STRING AS fund_name,
+    $3::STRING AS category,
+    $4::STRING AS amc_name,
+    $5::STRING AS benchmark_index,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS row_num
+FROM @MF01_STG/fund
+   )
+FILE_FORMAT = (FORMAT_NAME = MF01_FF_CSV)
+ON_ERROR = CONTINUE;
+
+
+select * from fund_master;
+alter pipe mf01_pipe_FUND refresh;
+
+
+--------------- mutual_fund_transactions 
+
+ CREATE OR REPLACE PIPE MF01_PIPE_TRANS
+AUTO_INGEST = TRUE
+INTEGRATION = MF01_NI2
+AS
+COPY INTO RAW.mutual_fund_transactions
+FROM 
+   (
+   SELECT
+    $1::STRING AS transaction_id,
+    $2::STRING AS investor_id,
+    $3::STRING AS fund_name,
+    $4::STRING AS scheme_code,
+    $5::STRING AS transaction_type,
+    $6::STRING AS amount,
+    $7::STRING AS nav_at_time,
+    $8::STRING AS units,
+    $9::STRING AS transaction_date,
+    CURRENT_TIMESTAMP AS loading_date,
+    METADATA$FILENAME AS file_name,
+    METADATA$FILE_ROW_NUMBER AS row_num
+FROM @MF01_STG/transaction
+   )
+FILE_FORMAT = (FORMAT_NAME = MF01_FF_CSV)
+ON_ERROR = CONTINUE;
+
+alter pipe MF01_PIPE_TRANS refresh;
+select * from mutual_fund_transactions;
+
+-------

@@ -1,0 +1,27 @@
+version: 2
+
+models:
+    - name : fct_mf_trans
+      description : "This is the main fact table where in all calculation fields are there"
+      columns :
+          - name: investor_id
+            description: "investor id is primary key"
+            tests:
+               - not_null
+          
+
+          - name: scheme_code
+            description: "it will say latest data"
+            tests:
+                - not_null
+                - accepted_values:
+                      values: ['HDFC456','ICICI321','SBI789','AXIS123']
+                - relationships:
+                      to: ref('stg_fund_master')
+                      field: scheme_code
+
+
+          
+
+
+

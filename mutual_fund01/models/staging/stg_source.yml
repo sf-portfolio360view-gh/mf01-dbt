@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: RAW_LAYER
+    schema: raw
+    database: MF01         # Optional: only if needed
+    tables:
+      - name: investor_master
+        description: "Raw source table containing investor details as received from upstream systems"
+      - name: nav_history
+        description: "Raw source table containing historical NAV values for mutual funds"
+      - name: fund_master
+        description: "dimentional table have fund details" 
+      - name: mutual_fund_transactions 
+        description: "keep all transactin details "
+        config:
+           freshness:
+              warn_after:  { count: 1, period: day }     # warning if older than 1 day
+              error_after: { count: 2, period: day }    # error if older than 2 days
+           loaded_at_field: loading_date     
+
