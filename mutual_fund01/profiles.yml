@@ -1,0 +1,26 @@
+mutual_fund01:
+  outputs:
+    dev:
+      account: HIGJYOT-CBC27075
+      database: MF01
+      password: NP98@snowflake01
+      role: MF01_DEV_ROLE
+      schema: MART
+      threads: 2
+      type: snowflake
+      user: DBT01
+      warehouse: MF01_WH
+  target: dev
+my_first_project:
+  outputs:
+    dev:
+      account: HIGJYOT-CBC27075
+      database: DBT_DB
+      password: NP98@snowflake01
+      role: ACCOUNTADMIN
+      schema: RAW
+      threads: 1
+      type: snowflake
+      user: DBT01
+      warehouse: COMPUTE_WH
+  target: dev
